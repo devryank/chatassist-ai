@@ -234,9 +234,10 @@
   // These target the actual chat/thread panel directly, bypassing the
   // generic DOM walk-up which can climb too high and include sidebars.
   //
-  // Each entry: { hostContains, selector, description }
-  // The selector is evaluated from the anchor node upward via closest(),
-  // then falls back to document.querySelector() for fixed wrappers.
+  // Each entry:
+  //   selectors  — tried in order; first one that contains anchorNode wins.
+  //   exclude    — child selectors to strip BEFORE reading innerText.
+  //                Used to remove noisy header/participant areas.
   const PLATFORM_CONTAINERS = [
     {
       // LinkedIn Messaging — thread detail panel (right side, chat messages only)
@@ -247,19 +248,58 @@
         '.msg-s-message-list-container', // message list itself
         '.msg-convo-wrapper',         // conversation wrapper
       ],
+      exclude: [],
     },
     {
       // WhatsApp Web — main conversation panel
+      // The header area contains the group name + ALL member phone numbers
+      // as a comma-separated subtitle — strip it to save context tokens.
       hostContains: 'web.whatsapp.com',
       selectors: [
         '#main',                      // main chat panel
         '[data-testid="conversation-panel-wrapper"]',
         '[data-testid="conversation-panel-messages"]',
       ],
+      exclude: [
+        // Conversation header (group name + participant list subtitle)
+        '[data-testid="conversation-header"]',
+        'header[data-testid]',
+        // Generic WAWeb header class
+        '#main header',
+        // Footer (message input box — not conversation history)
+        '[data-testid="conversation-compose-box-input"]',
+        'footer',
+      ],
     },
   ];
 
-  // Try to find the best platform-specific container that contains anchorNode
+  // ── Extract innerText from an element, excluding noisy children ─
+  // Clones the element so the live DOM is never mutated.
+  function getCleanText(el, excludeSelectors = []) {
+    if (!excludeSelectors || excludeSelectors.length === 0) {
+      return (el.innerText || '').trim();
+    }
+    try {
+      const clone = el.cloneNode(true);
+      for (const sel of excludeSelectors) {
+        clone.querySelectorAll(sel).forEach((node) => node.remove());
+      }
+      // Temporarily mount clone off-screen so innerText works correctly
+      clone.style.position = 'absolute';
+      clone.style.visibility = 'hidden';
+      clone.style.pointerEvents = 'none';
+      document.body.appendChild(clone);
+      const text = (clone.innerText || '').trim();
+      clone.remove();
+      return text;
+    } catch (_) {
+      return (el.innerText || '').trim();
+    }
+  }
+
+  // Try to find the best platform-specific container that contains anchorNode.
+  // Returns { el, excludeSelectors } so callers can strip noisy child elements
+  // (e.g. WhatsApp group header / participant phone numbers) via getCleanText().
   function getPlatformContainer(anchorNode) {
     const host = window.location.hostname || '';
     for (const platform of PLATFORM_CONTAINERS) {
@@ -269,10 +309,12 @@
         let el = anchorNode.closest ? anchorNode.closest(sel) : null;
         // Fall back to document-level query
         if (!el) el = document.querySelector(sel);
-        if (el && el.contains(anchorNode)) return el;
+        if (el && el.contains(anchorNode)) {
+          return { el, excludeSelectors: platform.exclude || [] };
+        }
       }
     }
-    return null;
+    return { el: null, excludeSelectors: [] };
   }
 
   function getSurroundingText(selection) {
@@ -290,9 +332,13 @@
 
       // ── Priority Pass: Platform-specific container ────────────
       // Run before the generic walk-up to avoid climbing into sidebar parents.
-      const platformEl = getPlatformContainer(anchorNode);
+      // Uses getCleanText() to strip platform-specific noisy regions
+      // (e.g. WhatsApp group header with member phone numbers) before
+      // passing the text to Claude.
+      const { el: platformEl, excludeSelectors: platformExclude } =
+        getPlatformContainer(anchorNode);
       if (platformEl) {
-        const txt = (platformEl.innerText || '').trim();
+        const txt = getCleanText(platformEl, platformExclude);
         if (txt.length >= MIN_CONTEXT_CHARS) {
           return trimAroundSelection(txt, selectedText);
         }

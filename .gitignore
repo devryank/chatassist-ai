@@ -1,0 +1,18 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor & IDE
+.vscode/
+.idea/
+*.suo
+*.user
+
+# If a build step is added later
+dist/
+build/
+node_modules/
+
+# Local dev artifacts
+*.log

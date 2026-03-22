@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatAssist-AI — Settings</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <div class="page-wrapper">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M12 2l2.09 6.26L20.18 10l-6.09 3.74-2.09 6.26-2.09-6.26L3.82 10l6.09-1.74L12 2z"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-name">ChatAssist-AI</span>
+          <span class="brand-version">v1.0.0</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 1.41 14.14M4.93 4.93A10 10 0 0 0 3.51 19.07"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2"/></svg>
+          General Settings
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="https://github.com/your-username/chatassist-ai" target="_blank" class="sidebar-link">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main-content">
+      <header class="page-header">
+        <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Configure your Claude API key and AI behavior</p>
+      </header>
+
+      <!-- Status Banner -->
+      <div id="status-banner" class="status-banner" style="display:none;"></div>
+
+      <!-- Section: API Configuration -->
+      <section class="settings-card">
+        <div class="card-header">
+          <div class="card-icon card-icon--blue">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div>
+            <h2 class="card-title">API Configuration</h2>
+            <p class="card-desc">Your key is stored locally on your device and never sent to our servers.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="api-key-input">
+            Claude API Key
+            <span class="badge badge--required">Required</span>
+          </label>
+          <div class="input-wrapper">
+            <input
+              type="password"
+              id="api-key-input"
+              class="form-input"
+              placeholder="sk-ant-api03-..."
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button class="input-toggle" id="toggle-visibility" title="Show/hide key" type="button">
+              <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <p class="form-hint">
+            Get your API key at <a href="https://console.anthropic.com/settings/keys" target="_blank" class="link">console.anthropic.com</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- Section: AI Behavior -->
+      <section class="settings-card">
+        <div class="card-header">
+          <div class="card-icon card-icon--violet">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.09 6.26L20.18 10l-6.09 3.74-2.09 6.26-2.09-6.26L3.82 10l6.09-1.74L12 2z"/></svg>
+          </div>
+          <div>
+            <h2 class="card-title">AI Behavior</h2>
+            <p class="card-desc">Customize how the AI responds to your highlighted text.</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="system-prompt-input">
+            Custom System Prompt
+            <span class="badge badge--optional">Optional</span>
+          </label>
+          <textarea
+            id="system-prompt-input"
+            class="form-textarea"
+            rows="6"
+            placeholder="e.g. You are a friendly customer service representative. Reply in a professional yet warm tone in Bahasa Indonesia..."
+            spellcheck="true"
+          ></textarea>
+          <p class="form-hint">Leave blank to use the default prompt. The AI will use this as its persona and instructions.</p>
+        </div>
+
+        <!-- Example prompts -->
+        <div class="examples-section">
+          <p class="examples-title">Quick examples — click to use:</p>
+          <div class="examples-grid">
+            <button class="example-chip" data-prompt="You are a professional customer service representative. Respond politely, empathetically, and helpfully in Bahasa Indonesia.">🤝 CS Representative</button>
+            <button class="example-chip" data-prompt="You are an expert negotiator. Analyze the given message and suggest a persuasive but respectful counter-response.">💼 Negotiation Coach</button>
+            <button class="example-chip" data-prompt="You are a professional English proofreader and writing coach. Improve the given text's clarity, grammar, and tone while preserving the original meaning.">✍️ Writing Coach</button>
+            <button class="example-chip" data-prompt="You are a LinkedIn networking expert. Write a professional, concise, and personalized reply to the following message.">🔗 LinkedIn Assistant</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Save Button -->
+      <div class="actions-bar">
+        <button id="save-btn" class="btn btn--primary" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Settings
+        </button>
+      </div>
+    </main>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

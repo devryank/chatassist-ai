@@ -1,0 +1,158 @@
+/* ============================================================
+   ChatAssist-AI — popup.css
+   Compact, clean, white-base popup (300px).
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary:      #6366f1;
+  --primary-soft: #ede9fe;
+  --text-900:     #111827;
+  --text-600:     #4b5563;
+  --text-400:     #9ca3af;
+  --border:       #e5e7eb;
+  --bg:           #ffffff;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: var(--text-900);
+  background: var(--bg);
+  width: 300px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.popup-container {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+.popup-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.popup-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-icon svg { width: 16px; height: 16px; fill: white; }
+
+.brand-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-900);
+  letter-spacing: -0.2px;
+}
+
+.brand-tagline {
+  font-size: 11px;
+  color: var(--text-400);
+  margin-top: 1px;
+}
+
+/* ── Status Section ─────────────────────────────────────── */
+.status-section {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.status-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-600);
+}
+
+.status-value {
+  font-size: 12px;
+  color: var(--text-400);
+  font-family: 'Courier New', monospace;
+}
+
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 99px;
+}
+
+.status-badge--checking { background: #f3f4f6; color: var(--text-400); }
+.status-badge--ok       { background: #dcfce7; color: #15803d; }
+.status-badge--missing  { background: #fef2f2; color: #dc2626; }
+
+/* ── How to use ─────────────────────────────────────────── */
+.how-to {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.how-to-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-400);
+  margin-bottom: 8px;
+}
+
+.how-to-list {
+  list-style: decimal;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--text-600);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ── Footer ─────────────────────────────────────────────── */
+.popup-footer { padding: 12px 16px; }
+
+.btn-settings {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.btn-settings:hover  { opacity: 0.9; transform: translateY(-1px); }
+.btn-settings:active { transform: translateY(0); }

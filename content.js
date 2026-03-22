@@ -731,7 +731,27 @@
   }
 
   // ── Close Modal ─────────────────────────────────────────────
-  function closeModal() {
+  function closeModal(force = false) {
+    // If called from an event listener, 'force' will be an Event object
+    const isEvent = typeof force === 'object';
+    
+    if (isEvent || !force) {
+      const responseEl = document.getElementById('chatassist-response-text');
+      const generateBtn = document.getElementById('chatassist-generate-btn');
+      
+      const isGenerating = generateBtn && generateBtn.disabled && generateBtn.innerHTML.includes('Generating');
+      const hasResponse = responseEl && responseEl.textContent.trim().length > 0;
+      
+      if (isGenerating || hasResponse) {
+        const msg = isGenerating 
+          ? "AI sedang membuat jawaban. Yakin ingin menutup?" 
+          : "Tutup AI? Jawaban yang belum di-copy akan hilang.";
+        if (!window.confirm(msg)) {
+          return; // Cancel closing
+        }
+      }
+    }
+
     const el = document.getElementById(BACKDROP_ID);
     if (el) el.remove();
     backdrop = null;

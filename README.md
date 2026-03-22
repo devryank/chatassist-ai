@@ -18,7 +18,7 @@ Select any text on the web, get a smart reply from Claude. Built for chats with 
 
 - 🌐 **Universal** — Works on any website: LinkedIn, WhatsApp Web, Slack, Upwork, Telegram, Gmail, and more
 - 🤖 **Powered by Claude (Haiku)** — Fast and cost-effective
-- 🧠 **Tri-layer context** — Captures surrounding conversation text from the page, platform info, and your own notes before generating
+- 🧠 **Quad-layer context** — Captures surrounding conversation text from the page, platform info, your own notes, and an optional PDF document attachment before generating
 - 🔑 **BYOK** — Your API key lives in your browser only. Nothing goes through a third-party server
 - 🎨 **Custom System Prompt** — Set the AI's persona once, use it everywhere
 - 📋 **One-click copy** — Copy the response straight to clipboard
@@ -32,7 +32,7 @@ Select any text on the web, get a smart reply from Claude. Built for chats with 
 1. Go to any website with a chat or message you need help with
 2. Highlight the text with your mouse
 3. Click the ✦ button that appears near your cursor
-4. (Optional) View the captured surrounding context, add your own notes
+4. (Optional) View the captured surrounding context, add your own notes, or attach a PDF
 5. Click "Generate Response"
 6. Copy the reply and paste it wherever you need it
 ```
@@ -76,6 +76,7 @@ When you click the ✦ button, ChatAssist-AI automatically gathers context befor
 | **A — Surrounding text** | Nearby messages on the page | Extracted from DOM, collapsible panel lets you verify what was captured |
 | **B — Platform** | Which site you're on | Page title + hostname, shown as a pill in the modal header |
 | **C — Manual notes** | Anything you want to add | Optional textarea before you hit Generate |
+| **D — Attached Document** | Any PDF file you upload | Text extracted locally in browser via PDF.js, persists across selections |
 
 This means Claude understands the full picture, not just the single message you selected.
 
@@ -159,6 +160,7 @@ ChatAssist-AI/
 ├── popup.html         # Toolbar popup
 ├── popup.css          # Popup styles
 ├── popup.js           # Popup logic
+├── lib/               # Third-party libraries (e.g., PDF.js)
 ├── icons/             # Extension icons (16, 48, 128px)
 └── README.md
 ```

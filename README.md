@@ -4,7 +4,7 @@
 
 # ChatAssist-AI
 
-Select any text on the web, get a smart reply from Claude. Built for chats with clients, bosses, and customers. Use your own API key.
+Select any text on the web, get a smart reply from Claude, OpenAI, or Gemini. Built for chats with clients, bosses, and customers. Use your own API key.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Manifest V3](https://img.shields.io/badge/Manifest-V3-green.svg)](https://developer.chrome.com/docs/extensions/develop/migrate/what-is-mv3)
@@ -17,7 +17,7 @@ Select any text on the web, get a smart reply from Claude. Built for chats with 
 ## ✨ Features
 
 - 🌐 **Universal** — Works on any website: LinkedIn, WhatsApp Web, Slack, Upwork, Telegram, Gmail, and more
-- 🤖 **Powered by Claude (Haiku)** — Fast and cost-effective
+- 🤖 **Multi-Model Support** — Choose between Anthropic (Claude), OpenAI (GPT-4o), or Google (Gemini) directly in Settings
 - 🧠 **Quad-layer context** — Captures surrounding conversation text from the page, platform info, your own notes, and an optional PDF document attachment before generating
 - 🔑 **BYOK** — Your API key lives in your browser only. Nothing goes through a third-party server
 - 🎨 **Custom System Prompt** — Set the AI's persona once, use it everywhere
@@ -61,7 +61,8 @@ Or download the ZIP and extract it.
 ### 3. Add your API key
 
 1. Click the extension icon → **Open Settings**
-2. Enter your Claude API key ([get one here](https://console.anthropic.com/settings/keys))
+2. Select your preferred **AI Model** (Claude, GPT, or Gemini)
+3. Enter the matching API key for your chosen provider
 3. Optionally write a custom system prompt
 4. Click **Save Settings**
 
@@ -69,7 +70,7 @@ Or download the ZIP and extract it.
 
 ## 🧠 Context Layers
 
-When you click the ✦ button, ChatAssist-AI automatically gathers context before calling Claude:
+When you click the ✦ button, ChatAssist-AI automatically gathers context before calling the AI:
 
 | Layer | What | How |
 |---|---|---|
@@ -78,7 +79,7 @@ When you click the ✦ button, ChatAssist-AI automatically gathers context befor
 | **C — Manual notes** | Anything you want to add | Optional textarea before you hit Generate |
 | **D — Attached Document** | Any PDF file you upload | Text extracted locally in browser via PDF.js, persists across selections |
 
-This means Claude understands the full picture, not just the single message you selected.
+This means the AI understands the full picture, not just the single message you selected.
 
 ---
 
@@ -86,12 +87,12 @@ This means Claude understands the full picture, not just the single message you 
 
 | | What happens |
 |---|---|
-| 🔐 **Storage** | Claude API key stored only in `chrome.storage.local` on your machine |
-| 🌐 **API calls** | Go directly from your browser to Anthropic's API — no proxy, no middleman |
+| 🔐 **Storage** | Your API keys are stored only in `chrome.storage.local` on your machine |
+| 🌐 **API calls** | Go directly from your browser to the provider's API (Anthropic, OpenAI, or Google) — no proxy, no middleman |
 | 🚫 **No telemetry** | Zero usage data collected |
-| 💸 **Billing** | Charged directly to your Anthropic account |
+| 💸 **Billing** | Charged directly to your chosen provider account |
 
-> Claude Haiku is one of the most affordable models available. Most replies cost a fraction of a cent.
+> Models like Claude Haiku, GPT-4o mini, and Gemini Flash are incredibly fast and most replies cost a fraction of a cent.
 
 ---
 

@@ -769,8 +769,8 @@
       'You are a helpful AI assistant. Analyze the provided text and give a clear, concise, and useful response.';
 
     // Load settings from storage
-    const { claudeApiKey, openaiApiKey, geminiApiKey, systemPrompt, claudeModel } = await new Promise((resolve) => {
-      chrome.storage.local.get(['claudeApiKey', 'openaiApiKey', 'geminiApiKey', 'systemPrompt', 'claudeModel'], resolve);
+    const { authMode, licenseKey, claudeApiKey, openaiApiKey, geminiApiKey, systemPrompt, claudeModel } = await new Promise((resolve) => {
+      chrome.storage.local.get(['authMode', 'licenseKey', 'claudeApiKey', 'openaiApiKey', 'geminiApiKey', 'systemPrompt', 'claudeModel'], resolve);
     });
 
     const finalSystemPrompt = (systemPrompt && systemPrompt.trim())
@@ -785,18 +785,27 @@
       [provider, finalModel] = rawModelStr.split(':');
     }
 
+    const activeMode = authMode || (claudeApiKey ? 'byok' : 'pro');
+
     // Validate the needed key
-    if (provider === 'anthropic' && (!claudeApiKey || !claudeApiKey.trim())) {
-      showError(bodyEl, '⚠️ No Anthropic API key found. Please check Settings.');
-      return;
-    }
-    if (provider === 'openai' && (!openaiApiKey || !openaiApiKey.trim())) {
-      showError(bodyEl, '⚠️ No OpenAI API key found. Please check Settings.');
-      return;
-    }
-    if (provider === 'gemini' && (!geminiApiKey || !geminiApiKey.trim())) {
-      showError(bodyEl, '⚠️ No Gemini API key found. Please check Settings.');
-      return;
+    if (activeMode === 'pro') {
+      if (!licenseKey || !licenseKey.trim()) {
+        showError(bodyEl, '⚠️ No Pro License Key found. Please check Settings.');
+        return;
+      }
+    } else {
+      if (provider === 'anthropic' && (!claudeApiKey || !claudeApiKey.trim())) {
+        showError(bodyEl, '⚠️ No Anthropic API key found. Please check Settings.');
+        return;
+      }
+      if (provider === 'openai' && (!openaiApiKey || !openaiApiKey.trim())) {
+        showError(bodyEl, '⚠️ No OpenAI API key found. Please check Settings.');
+        return;
+      }
+      if (provider === 'gemini' && (!geminiApiKey || !geminiApiKey.trim())) {
+        showError(bodyEl, '⚠️ No Gemini API key found. Please check Settings.');
+        return;
+      }
     }
 
     // ── Build quad-layer user message ─────────────────────────
@@ -832,69 +841,91 @@
     try {
       let aiText = '';
 
-      if (provider === 'anthropic') {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
+      if (activeMode === 'pro') {
+        // Cloudflare Worker Proxy Backend for ChatAssist Pro (License Key validation + wrapper)
+        const response = await fetch('http://localhost:8787/v1/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': claudeApiKey.trim(),
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true',
+            'Authorization': `Bearer ${licenseKey.trim()}`
           },
           body: JSON.stringify({
+            provider: provider,
             model: finalModel,
-            max_tokens: 2048,
             system: finalSystemPrompt,
-            messages: [{ role: 'user', content: userMessage }],
-          }),
+            message: userMessage
+          })
         });
         const data = await response.json();
-        if (!response.ok) throw new Error(data?.error?.message || `Anthropic API Error (${response.status})`);
-        aiText = data.content?.[0]?.text || '(No response)';
+        if (!response.ok) throw new Error(data?.error || `ChatAssist Pro API Error (${response.status})`);
+        aiText = data.text || '(No response)';
 
-      } else if (provider === 'openai') {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openaiApiKey.trim()}`,
-          },
-          body: JSON.stringify({
-            model: finalModel,
-            max_tokens: 2048,
-            messages: [
-              { role: 'system', content: finalSystemPrompt },
-              { role: 'user', content: userMessage }
-            ],
-          }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data?.error?.message || `OpenAI API Error (${response.status})`);
-        aiText = data.choices?.[0]?.message?.content || '(No response)';
-
-      } else if (provider === 'gemini') {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${finalModel}:generateContent?key=${geminiApiKey.trim()}`;
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: finalSystemPrompt }]
+      } else {
+        // BYOK Mode: Direct to Provider APIs
+        if (provider === 'anthropic') {
+          const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': claudeApiKey.trim(),
+              'anthropic-version': '2023-06-01',
+              'anthropic-dangerous-direct-browser-access': 'true',
             },
-            contents: [{
-              role: 'user',
-              parts: [{ text: userMessage }]
-            }],
-            generationConfig: {
-              maxOutputTokens: 2048
-            }
-          }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data?.error?.message || `Gemini API Error (${response.status})`);
-        aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '(No response)';
+            body: JSON.stringify({
+              model: finalModel,
+              max_tokens: 2048,
+              system: finalSystemPrompt,
+              messages: [{ role: 'user', content: userMessage }],
+            }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data?.error?.message || `Anthropic API Error (${response.status})`);
+          aiText = data.content?.[0]?.text || '(No response)';
+
+        } else if (provider === 'openai') {
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${openaiApiKey.trim()}`,
+            },
+            body: JSON.stringify({
+              model: finalModel,
+              max_tokens: 2048,
+              messages: [
+                { role: 'system', content: finalSystemPrompt },
+                { role: 'user', content: userMessage }
+              ],
+            }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data?.error?.message || `OpenAI API Error (${response.status})`);
+          aiText = data.choices?.[0]?.message?.content || '(No response)';
+
+        } else if (provider === 'gemini') {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${finalModel}:generateContent?key=${geminiApiKey.trim()}`;
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              system_instruction: {
+                parts: [{ text: finalSystemPrompt }]
+              },
+              contents: [{
+                role: 'user',
+                parts: [{ text: userMessage }]
+              }],
+              generationConfig: {
+                maxOutputTokens: 2048
+              }
+            }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data?.error?.message || `Gemini API Error (${response.status})`);
+          aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '(No response)';
+        }
       }
 
       showResponse(bodyEl, aiText, copyBtn);

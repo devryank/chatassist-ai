@@ -59,7 +59,7 @@
       <!-- Status Banner -->
       <div id="status-banner" class="status-banner" style="display:none;"></div>
 
-      <!-- Section: API Configuration -->
+      <!-- Section: Authorization / API Configuration -->
       <section class="settings-card">
         <div class="card-header">
           <div class="card-icon card-icon--blue">
@@ -70,49 +70,80 @@
             </svg>
           </div>
           <div>
-            <h2 class="card-title">API Configuration</h2>
-            <p class="card-desc">Your key is stored locally on your device and never sent to our servers.</p>
+            <h2 class="card-title">Account & API Configuration</h2>
+            <p class="card-desc">Choose how you want to use ChatAssist-AI.</p>
           </div>
         </div>
 
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" for="api-key-input">
-            Claude API Key
+        <!-- Mode Toggle -->
+        <div class="auth-mode-selector" style="display: flex; gap: 24px; margin-bottom: 20px; background: #f9fafb; padding: 14px 16px; border-radius: 8px; border: 1px solid #e5e7eb;">
+          <label class="radio-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #1a1a2e; user-select: none;">
+            <input type="radio" name="authMode" value="pro" id="mode-pro" checked style="accent-color: #6366f1; width: 16px; height: 16px;">
+            ChatAssist Pro (License)
           </label>
-          <div class="input-wrapper">
-            <input type="password" id="api-key-input" class="form-input" placeholder="sk-ant-api03-..."
-              autocomplete="off" spellcheck="false" />
-            <button class="input-toggle" id="toggle-visibility" title="Show/hide key" type="button">
-              <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-          </div>
+          <label class="radio-label" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 500; color: #4b5563; user-select: none;">
+            <input type="radio" name="authMode" value="byok" id="mode-byok" style="accent-color: #6366f1; width: 16px; height: 16px;">
+            Free (Bring Your Own Key)
+          </label>
         </div>
 
-        <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label" for="openai-key-input">
-            OpenAI API Key
+        <!-- Pro License Section -->
+        <div id="pro-section" class="form-group">
+          <label class="form-label" for="license-key-input">
+            Pro License Key
           </label>
           <div class="input-wrapper">
-            <input type="password" id="openai-key-input" class="form-input" placeholder="sk-..." autocomplete="off"
-              spellcheck="false" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="gemini-key-input">
-            Gemini API Key
-          </label>
-          <div class="input-wrapper">
-            <input type="password" id="gemini-key-input" class="form-input" placeholder="AIza..." autocomplete="off"
-              spellcheck="false" />
+            <input type="password" id="license-key-input" class="form-input" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" />
           </div>
           <p class="form-hint" style="margin-top: 8px;">
-            Only the API key for your selected model is required.
+            Don't have a license? <a href="#" target="_blank" class="link">Get ChatAssist Pro</a>
           </p>
+        </div>
+
+        <!-- BYOK Section -->
+        <div id="byok-section" style="display: none; border-top: 1px solid #e5e7eb; padding-top: 16px; margin-top: 16px;">
+          <p class="form-hint" style="margin-bottom: 16px; color: #6b7280;">
+            Your keys are stored locally and sent directly to the AI provider.
+          </p>
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" for="api-key-input">
+              Claude API Key
+            </label>
+            <div class="input-wrapper">
+              <input type="password" id="api-key-input" class="form-input" placeholder="sk-ant-api03-..."
+                autocomplete="off" spellcheck="false" />
+              <button class="input-toggle" id="toggle-visibility" title="Show/hide key" type="button">
+                <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 16px;">
+            <label class="form-label" for="openai-key-input">
+              OpenAI API Key
+            </label>
+            <div class="input-wrapper">
+              <input type="password" id="openai-key-input" class="form-input" placeholder="sk-..." autocomplete="off"
+                spellcheck="false" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="gemini-key-input">
+              Gemini API Key
+            </label>
+            <div class="input-wrapper">
+              <input type="password" id="gemini-key-input" class="form-input" placeholder="AIza..." autocomplete="off"
+                spellcheck="false" />
+            </div>
+            <p class="form-hint" style="margin-top: 8px;">
+              Only the API key for your selected model is required.
+            </p>
+          </div>
         </div>
       </section>
 

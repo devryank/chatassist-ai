@@ -11,16 +11,41 @@ document.addEventListener('DOMContentLoaded', () => {
   const exampleChips = document.querySelectorAll('.example-chip');
   const modelSelect = document.getElementById('model-select');
 
+  const authModeRadios = document.querySelectorAll('input[name="authMode"]');
+  const proSection = document.getElementById('pro-section');
+  const byokSection = document.getElementById('byok-section');
+  const licenseKeyInput = document.getElementById('license-key-input');
+
   const openaiKeyInput = document.getElementById('openai-key-input');
   const geminiKeyInput = document.getElementById('gemini-key-input');
 
   // ── Load saved settings ──────────────────────────────────
-  chrome.storage.local.get(['claudeApiKey', 'openaiApiKey', 'geminiApiKey', 'systemPrompt', 'claudeModel'], (result) => {
+  chrome.storage.local.get(['authMode', 'licenseKey', 'claudeApiKey', 'openaiApiKey', 'geminiApiKey', 'systemPrompt', 'claudeModel'], (result) => {
+    const loadedMode = result.authMode || (result.claudeApiKey ? 'byok' : 'pro');
+    const radioToSelect = document.querySelector(`input[name="authMode"][value="${loadedMode}"]`);
+    if (radioToSelect) radioToSelect.checked = true;
+    applyAuthModeUI(loadedMode);
+
+    if (result.licenseKey) licenseKeyInput.value = result.licenseKey;
     if (result.claudeApiKey) apiKeyInput.value = result.claudeApiKey;
     if (result.openaiApiKey) openaiKeyInput.value = result.openaiApiKey;
     if (result.geminiApiKey) geminiKeyInput.value = result.geminiApiKey;
     if (result.systemPrompt) systemPrompt.value = result.systemPrompt;
     if (result.claudeModel) modelSelect.value = result.claudeModel;
+  });
+
+  function applyAuthModeUI(mode) {
+    if (mode === 'pro') {
+      proSection.style.display = 'block';
+      byokSection.style.display = 'none';
+    } else {
+      proSection.style.display = 'none';
+      byokSection.style.display = 'block';
+    }
+  }
+
+  authModeRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => applyAuthModeUI(e.target.value));
   });
 
   // ── Show / Hide API Key ──────────────────────────────────
@@ -46,31 +71,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Save ─────────────────────────────────────────────────
   saveBtn.addEventListener('click', () => {
+    const activeMode = document.querySelector('input[name="authMode"]:checked').value;
+    const licenseVal = licenseKeyInput.value.trim();
     const keyValue = apiKeyInput.value.trim();
     const openaiValue = openaiKeyInput.value.trim();
     const geminiValue = geminiKeyInput.value.trim();
     const promptValue = systemPrompt.value.trim();
     const modelValue = modelSelect.value || 'anthropic:claude-haiku-4-5';
 
-    // Validate based on the selected model
-    if ((modelValue.startsWith('anthropic:') || !modelValue.includes(':')) && !keyValue.startsWith('sk-ant-')) {
-      showBanner('error', '⚠️ Claude API key is required and must start with "sk-ant-".');
-      apiKeyInput.focus();
-      return;
-    }
-    if (modelValue.startsWith('openai:') && (!openaiValue || !openaiValue.startsWith('sk-'))) {
-      showBanner('error', '⚠️ OpenAI API key is required and must start with "sk-".');
-      openaiKeyInput.focus();
-      return;
-    }
-    if (modelValue.startsWith('gemini:') && (!geminiValue || !geminiValue.startsWith('AIza'))) {
-      showBanner('error', '⚠️ Gemini API key is required and must start with "AIza".');
-      geminiKeyInput.focus();
-      return;
+    if (activeMode === 'pro') {
+      if (!licenseVal) {
+        showBanner('error', '⚠️ Pro License Key is required for ChatAssist Pro.');
+        licenseKeyInput.focus();
+        return;
+      }
+    } else {
+      // Validate BYOK based on the selected model
+      if ((modelValue.startsWith('anthropic:') || !modelValue.includes(':')) && !keyValue.startsWith('sk-ant-')) {
+        showBanner('error', '⚠️ Claude API key is required and must start with "sk-ant-".');
+        apiKeyInput.focus();
+        return;
+      }
+      if (modelValue.startsWith('openai:') && (!openaiValue || !openaiValue.startsWith('sk-'))) {
+        showBanner('error', '⚠️ OpenAI API key is required and must start with "sk-".');
+        openaiKeyInput.focus();
+        return;
+      }
+      if (modelValue.startsWith('gemini:') && (!geminiValue || !geminiValue.startsWith('AIza'))) {
+        showBanner('error', '⚠️ Gemini API key is required and must start with "AIza".');
+        geminiKeyInput.focus();
+        return;
+      }
     }
 
     chrome.storage.local.set(
       {
+        authMode: activeMode,
+        licenseKey: licenseVal,
         claudeApiKey: keyValue,
         openaiApiKey: openaiValue,
         geminiApiKey: geminiValue,

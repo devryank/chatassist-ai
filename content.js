@@ -12,7 +12,7 @@
   // ── Constants ──────────────────────────────────────────────
   const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
   const CLAUDE_API_VERSION = '2023-06-01';
-  const AI_MODEL = 'claude-haiku-4-5';
+  const DEFAULT_MODEL = 'claude-haiku-4-5';
   const FAB_ID = 'chatassist-fab';
   const BACKDROP_ID = 'chatassist-backdrop';
 
@@ -28,9 +28,9 @@
   // ── PDF.js v5 — lazy-loaded on demand via dynamic import() ─────────────
   // PDF.js is only loaded when the user first clicks "Attach PDF".
   // This avoids any startup overhead on every page.
-  const PDFJS_URL        = chrome.runtime.getURL('lib/pdf.mjs');
+  const PDFJS_URL = chrome.runtime.getURL('lib/pdf.mjs');
   const PDFJS_WORKER_URL = chrome.runtime.getURL('lib/pdf.worker.mjs');
-  let   _pdfjsLib        = null; // cached after first load
+  let _pdfjsLib = null; // cached after first load
 
   async function getPDFJS() {
     if (_pdfjsLib) return _pdfjsLib;
@@ -49,13 +49,13 @@
 
   // Extract ALL text from a PDF File object using PDF.js v5
   async function extractPDFText(file) {
-    const pdfjsLib    = await getPDFJS();
+    const pdfjsLib = await getPDFJS();
     const arrayBuffer = await file.arrayBuffer();
-    const pdf         = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const pageTexts   = [];
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pageTexts = [];
 
     for (let i = 1; i <= pdf.numPages; i++) {
-      const page    = await pdf.getPage(i);
+      const page = await pdf.getPage(i);
       const content = await page.getTextContent();
       const pageStr = content.items.map((item) => item.str).join(' ');
       pageTexts.push(pageStr);
@@ -88,13 +88,13 @@
   function updateFABBadge() {
     if (!fab) return;
     const existing = document.getElementById('chatassist-fab-badge');
-    const hasPDF   = !!getPDFContext();
+    const hasPDF = !!getPDFContext();
 
     if (hasPDF && !existing) {
       const badge = document.createElement('span');
-      badge.id          = 'chatassist-fab-badge';
+      badge.id = 'chatassist-fab-badge';
       badge.textContent = '📄';
-      badge.title       = 'PDF attached — click ✦ to use it';
+      badge.title = 'PDF attached — click ✦ to use it';
       fab.appendChild(badge);
     } else if (!hasPDF && existing) {
       existing.remove();
@@ -215,10 +215,10 @@
   //   LinkedIn's <main> is ~70% viewport width so it passes geometry, but
   //   its text is diluted by the conversation-list sidebar → density rejects it.
   //
-  const MIN_CONTEXT_CHARS  = 200;    // minimum chars for useful context
-  const IDEAL_MAX_CHARS    = 12000;  // ideal ceiling — stays inside chat panel
-  const MAX_PAGE_CHARS     = 40000;  // hard ceiling before it's the full page
-  const MIN_DENSITY        = 0.02;   // selected text must be ≥ 2% of ancestor
+  const MIN_CONTEXT_CHARS = 200;    // minimum chars for useful context
+  const IDEAL_MAX_CHARS = 12000;  // ideal ceiling — stays inside chat panel
+  const MAX_PAGE_CHARS = 40000;  // hard ceiling before it's the full page
+  const MIN_DENSITY = 0.02;   // selected text must be ≥ 2% of ancestor
 
   // Returns true if the element width spans nearly the full viewport
   function isLayoutShell(el) {
@@ -321,9 +321,9 @@
     try {
       if (!selection || selection.rangeCount === 0) return '';
 
-      const range        = selection.getRangeAt(0);
+      const range = selection.getRangeAt(0);
       const selectedText = selection.toString().trim();
-      let   anchorNode   = range.commonAncestorContainer;
+      let anchorNode = range.commonAncestorContainer;
 
       if (anchorNode.nodeType === Node.TEXT_NODE) anchorNode = anchorNode.parentElement;
       if (!anchorNode) return '';
@@ -346,7 +346,7 @@
 
       // ── Pass 1 & 2: Walk up, apply filters ───────────────────
       let fallbackEl = null; // best candidate if ideal not found
-      let current    = anchorNode;
+      let current = anchorNode;
 
       while (current && current !== document.documentElement) {
         const txt = (current.innerText || '').trim();
@@ -357,8 +357,8 @@
 
         if (len >= MIN_CONTEXT_CHARS) {
           const passGeometry = !isLayoutShell(current);
-          const density      = selLen / len;
-          const passDensity  = density >= MIN_DENSITY;
+          const density = selLen / len;
+          const passDensity = density >= MIN_DENSITY;
 
           // Pass 1 (IDEAL): small container, both filters pass → accept now
           if (len <= IDEAL_MAX_CHARS && passGeometry && passDensity) {
@@ -384,7 +384,7 @@
 
       // ── Pass 3: Aggregate sibling text at multiple levels ─────
       let aggregated = '';
-      let crawler    = anchorNode;
+      let crawler = anchorNode;
 
       while (crawler && crawler !== document.body) {
         const parent = crawler.parentElement;
@@ -567,9 +567,9 @@
 
     // Hidden file input
     const pdfFileInput = document.createElement('input');
-    pdfFileInput.type   = 'file';
+    pdfFileInput.type = 'file';
     pdfFileInput.accept = '.pdf,application/pdf';
-    pdfFileInput.id     = 'chatassist-pdf-file-input';
+    pdfFileInput.id = 'chatassist-pdf-file-input';
     pdfFileInput.style.display = 'none';
 
     // Header row
@@ -577,7 +577,7 @@
     pdfHeader.id = 'chatassist-pdf-header';
 
     const pdfIcon = document.createElement('span');
-    pdfIcon.id          = 'chatassist-pdf-icon';
+    pdfIcon.id = 'chatassist-pdf-icon';
     pdfIcon.textContent = '📄';
 
     const pdfLabel = document.createElement('span');
@@ -587,14 +587,14 @@
     pdfActions.id = 'chatassist-pdf-actions';
 
     const pdfAttachBtn = document.createElement('button');
-    pdfAttachBtn.id          = 'chatassist-pdf-attach-btn';
+    pdfAttachBtn.id = 'chatassist-pdf-attach-btn';
     pdfAttachBtn.textContent = 'Attach PDF';
-    pdfAttachBtn.type        = 'button';
+    pdfAttachBtn.type = 'button';
 
     const pdfRemoveBtn = document.createElement('button');
-    pdfRemoveBtn.id          = 'chatassist-pdf-remove-btn';
+    pdfRemoveBtn.id = 'chatassist-pdf-remove-btn';
     pdfRemoveBtn.textContent = '× Remove';
-    pdfRemoveBtn.type        = 'button';
+    pdfRemoveBtn.type = 'button';
     pdfRemoveBtn.style.display = 'none';
 
     pdfActions.append(pdfAttachBtn, pdfRemoveBtn);
@@ -602,7 +602,7 @@
 
     // Loading indicator
     const pdfLoadingEl = document.createElement('span');
-    pdfLoadingEl.id          = 'chatassist-pdf-loading';
+    pdfLoadingEl.id = 'chatassist-pdf-loading';
     pdfLoadingEl.textContent = '⏳ Reading PDF…';
     pdfLoadingEl.style.display = 'none';
 
@@ -612,11 +612,11 @@
     function refreshPDFUI(ctx) {
       if (ctx) {
         const charCount = ctx.text.length.toLocaleString();
-        pdfLabel.textContent   = `${ctx.name} (${charCount} chars)`;
+        pdfLabel.textContent = `${ctx.name} (${charCount} chars)`;
         pdfAttachBtn.style.display = 'none';
         pdfRemoveBtn.style.display = 'inline-flex';
       } else {
-        pdfLabel.textContent       = 'PDF Document';
+        pdfLabel.textContent = 'PDF Document';
         pdfAttachBtn.style.display = 'inline-flex';
         pdfRemoveBtn.style.display = 'none';
       }
@@ -634,7 +634,7 @@
       if (!file) return;
 
       pdfLoadingEl.style.display = 'inline-block';
-      pdfAttachBtn.disabled      = true;
+      pdfAttachBtn.disabled = true;
 
       try {
         const text = await extractPDFText(file);
@@ -645,8 +645,8 @@
         pdfLabel.textContent = `⚠️ Error: ${err.message}`;
       } finally {
         pdfLoadingEl.style.display = 'none';
-        pdfAttachBtn.disabled      = false;
-        pdfFileInput.value         = ''; // reset so same file can be re-attached
+        pdfAttachBtn.disabled = false;
+        pdfFileInput.value = ''; // reset so same file can be re-attached
       }
     });
 
@@ -703,8 +703,8 @@
 
     // Generate on button click — pass current PDF context at click time
     generateBtn.addEventListener('click', () => {
-      const manualContext  = manualInput.value.trim();
-      const currentPDF     = getPDFContext(); // re-read in case user just attached
+      const manualContext = manualInput.value.trim();
+      const currentPDF = getPDFContext(); // re-read in case user just attached
       generateBtn.disabled = true;
       generateBtn.style.opacity = '0.6';
       generateBtn.innerHTML = '⏳ Generating…';
@@ -734,17 +734,17 @@
   function closeModal(force = false) {
     // If called from an event listener, 'force' will be an Event object
     const isEvent = typeof force === 'object';
-    
+
     if (isEvent || !force) {
       const responseEl = document.getElementById('chatassist-response-text');
       const generateBtn = document.getElementById('chatassist-generate-btn');
-      
+
       const isGenerating = generateBtn && generateBtn.disabled && generateBtn.innerHTML.includes('Generating');
       const hasResponse = responseEl && responseEl.textContent.trim().length > 0;
-      
+
       if (isGenerating || hasResponse) {
-        const msg = isGenerating 
-          ? "AI sedang membuat jawaban. Yakin ingin menutup?" 
+        const msg = isGenerating
+          ? "AI sedang membuat jawaban. Yakin ingin menutup?"
           : "Tutup AI? Jawaban yang belum di-copy akan hilang.";
         if (!window.confirm(msg)) {
           return; // Cancel closing
@@ -763,27 +763,41 @@
     if (e.key === 'Escape') closeModal();
   }
 
-  // ── Claude API Call (with quad-layer context) ─────────────────
+  // ── AI API Call (with quad-layer context) ─────────────────
   async function callClaude(selectedText, surroundingText, platformCtx, manualContext, pdfCtx, bodyEl, copyBtn) {
     const DEFAULT_SYSTEM_PROMPT =
       'You are a helpful AI assistant. Analyze the provided text and give a clear, concise, and useful response.';
 
     // Load settings from storage
-    const { claudeApiKey, systemPrompt } = await new Promise((resolve) => {
-      chrome.storage.local.get(['claudeApiKey', 'systemPrompt'], resolve);
+    const { claudeApiKey, openaiApiKey, geminiApiKey, systemPrompt, claudeModel } = await new Promise((resolve) => {
+      chrome.storage.local.get(['claudeApiKey', 'openaiApiKey', 'geminiApiKey', 'systemPrompt', 'claudeModel'], resolve);
     });
-
-    if (!claudeApiKey || claudeApiKey.trim() === '') {
-      showError(
-        bodyEl,
-        '⚠️ No API key found.\n\nPlease open the ChatAssist-AI Options page (click the extension icon → Open Settings) and enter your Claude API key.'
-      );
-      return;
-    }
 
     const finalSystemPrompt = (systemPrompt && systemPrompt.trim())
       ? systemPrompt.trim()
       : DEFAULT_SYSTEM_PROMPT;
+
+    const rawModelStr = claudeModel || 'anthropic:claude-haiku-4-5';
+    let provider = 'anthropic';
+    let finalModel = rawModelStr;
+
+    if (rawModelStr.includes(':')) {
+      [provider, finalModel] = rawModelStr.split(':');
+    }
+
+    // Validate the needed key
+    if (provider === 'anthropic' && (!claudeApiKey || !claudeApiKey.trim())) {
+      showError(bodyEl, '⚠️ No Anthropic API key found. Please check Settings.');
+      return;
+    }
+    if (provider === 'openai' && (!openaiApiKey || !openaiApiKey.trim())) {
+      showError(bodyEl, '⚠️ No OpenAI API key found. Please check Settings.');
+      return;
+    }
+    if (provider === 'gemini' && (!geminiApiKey || !geminiApiKey.trim())) {
+      showError(bodyEl, '⚠️ No Gemini API key found. Please check Settings.');
+      return;
+    }
 
     // ── Build quad-layer user message ─────────────────────────
     const parts = [];
@@ -815,41 +829,80 @@
 
     const userMessage = parts.join('\n');
 
-
     try {
-      const response = await fetch(CLAUDE_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': claudeApiKey.trim(),
-          'anthropic-version': CLAUDE_API_VERSION,
-          'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-          model: AI_MODEL,
-          max_tokens: 2048,
-          system: finalSystemPrompt,
-          messages: [
-            { role: 'user', content: userMessage },
-          ],
-        }),
-      });
+      let aiText = '';
 
-      const data = await response.json();
+      if (provider === 'anthropic') {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': claudeApiKey.trim(),
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify({
+            model: finalModel,
+            max_tokens: 2048,
+            system: finalSystemPrompt,
+            messages: [{ role: 'user', content: userMessage }],
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error?.message || `Anthropic API Error (${response.status})`);
+        aiText = data.content?.[0]?.text || '(No response)';
 
-      if (!response.ok) {
-        const errMsg = data?.error?.message || `API Error (${response.status})`;
-        showError(bodyEl, `❌ Claude Error:\n${errMsg}`);
-        return;
+      } else if (provider === 'openai') {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openaiApiKey.trim()}`,
+          },
+          body: JSON.stringify({
+            model: finalModel,
+            max_tokens: 2048,
+            messages: [
+              { role: 'system', content: finalSystemPrompt },
+              { role: 'user', content: userMessage }
+            ],
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error?.message || `OpenAI API Error (${response.status})`);
+        aiText = data.choices?.[0]?.message?.content || '(No response)';
+
+      } else if (provider === 'gemini') {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${finalModel}:generateContent?key=${geminiApiKey.trim()}`;
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            system_instruction: {
+              parts: [{ text: finalSystemPrompt }]
+            },
+            contents: [{
+              role: 'user',
+              parts: [{ text: userMessage }]
+            }],
+            generationConfig: {
+              maxOutputTokens: 2048
+            }
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error?.message || `Gemini API Error (${response.status})`);
+        aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '(No response)';
       }
 
-      const aiText = data.content?.[0]?.text || '(No response)';
       showResponse(bodyEl, aiText, copyBtn);
 
     } catch (err) {
       showError(
         bodyEl,
-        `❌ Network Error:\n${err.message}\n\nPlease check your internet connection.`
+        `❌ API Error:\n${err.message}\n\nPlease check your key & internet connection.`
       );
     }
   }
@@ -859,11 +912,11 @@
     // Escape HTML entities first
     const esc = (s) =>
       s.replace(/&/g, '&amp;')
-       .replace(/</g, '&lt;')
-       .replace(/>/g, '&gt;');
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 
     const lines = text.split('\n');
-    const html  = [];
+    const html = [];
     let inUl = false, inOl = false, inPre = false, preLines = [];
 
     const flushList = () => {
@@ -880,7 +933,7 @@
     };
 
     for (let i = 0; i < lines.length; i++) {
-      const raw  = lines[i];
+      const raw = lines[i];
       const line = raw.trimEnd();
 
       // Fenced code block
@@ -892,8 +945,8 @@
 
       // Headings
       if (/^### /.test(line)) { flushList(); html.push('<h3>' + inlineMarkdown(esc(line.slice(4))) + '</h3>'); continue; }
-      if (/^## /.test(line))  { flushList(); html.push('<h2>' + inlineMarkdown(esc(line.slice(3))) + '</h2>'); continue; }
-      if (/^# /.test(line))   { flushList(); html.push('<h1>' + inlineMarkdown(esc(line.slice(2))) + '</h1>'); continue; }
+      if (/^## /.test(line)) { flushList(); html.push('<h2>' + inlineMarkdown(esc(line.slice(3))) + '</h2>'); continue; }
+      if (/^# /.test(line)) { flushList(); html.push('<h1>' + inlineMarkdown(esc(line.slice(2))) + '</h1>'); continue; }
 
       // Horizontal rule
       if (/^[-*_]{3,}$/.test(line.trim())) { flushList(); html.push('<hr>'); continue; }
@@ -924,7 +977,7 @@
       // Blank line → close lists / paragraph break
       if (line.trim() === '') {
         flushList();
-        html.push('<br>');
+        // Rely on CSS margins for grouping, don't inject <br>
         continue;
       }
 
@@ -971,9 +1024,9 @@
         editBar.id = 'chatassist-edit-bar';
 
         const editBtn = document.createElement('button');
-        editBtn.id          = 'chatassist-edit-context-btn';
-        editBtn.innerHTML   = '✏ Edit context &amp; regenerate';
-        editBtn.type        = 'button';
+        editBtn.id = 'chatassist-edit-context-btn';
+        editBtn.innerHTML = '✏ Edit context &amp; regenerate';
+        editBtn.type = 'button';
 
         editBtn.addEventListener('click', () => {
           modal.classList.remove('chatassist-response-mode');

@@ -85,7 +85,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 18px 20px 14px;
+  padding: 12px 16px 10px;
   border-bottom: 1px solid #f0f0f5;
   font-family: inherit;
 }
@@ -177,7 +177,7 @@
   all: initial;
   box-sizing: border-box;
   font-family: inherit;
-  padding: 14px 20px;
+  padding: 12px 16px;
   flex: 1;
   overflow-y: auto;
   display: block;
@@ -219,9 +219,9 @@
   line-height: 1.35;
 }
 
-#chatassist-response-text h1 { font-size: 17px; margin-top: 4px; }
-#chatassist-response-text h2 { font-size: 15px; margin-top: 14px; }
-#chatassist-response-text h3 { font-size: 14px; margin-top: 12px; }
+#chatassist-response-text h1 { font-size: 17px; margin-top: 4px; margin-bottom: 4px; }
+#chatassist-response-text h2 { font-size: 15px; margin-top: 10px; margin-bottom: 4px; }
+#chatassist-response-text h3 { font-size: 14px; margin-top: 8px; margin-bottom: 4px; }
 
 #chatassist-response-text p {
   all: initial;
@@ -230,7 +230,7 @@
   font-size: 14px;
   line-height: 1.75;
   color: #374151;
-  margin: 0 0 10px 0;
+  margin: 0 0 6px 0;
 }
 
 #chatassist-response-text strong,
@@ -254,7 +254,7 @@
   all: initial;
   display: block;
   padding-left: 20px;
-  margin: 4px 0 10px 0;
+  margin: 2px 0 6px 0;
 }
 
 #chatassist-response-text ul { list-style: disc; }
@@ -290,11 +290,11 @@
   border-left: 3px solid #6366f1;
   color: #374151;
   border-radius: 0 6px 6px 0;
-  padding: 12px 14px;
-  margin: 8px 0;
+  padding: 10px 12px;
+  margin: 6px 0;
   overflow-x: auto;
   white-space: pre;
-  line-height: 1.6;
+  line-height: 1.4;
 }
 
 #chatassist-response-text blockquote {
@@ -415,7 +415,7 @@
 #chatassist-modal-footer {
   all: initial;
   box-sizing: border-box;
-  padding: 12px 20px 16px;
+  padding: 10px 16px 12px;
   border-top: 1px solid #f0f0f5;
   display: flex;
   gap: 8px;

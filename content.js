@@ -1,8 +1,9 @@
 // ============================================================
 // ChatAssist-AI — content.js
 // Detects text selection on any webpage, shows a floating AI
-// button near the cursor, then calls Claude API with tri-layer
-// context (DOM surrounding text, platform info, manual input).
+// button near the cursor, then calls Claude API with quad-layer
+// context: DOM surrounding text, platform info, manual input,
+// and an optional persistent PDF document attachment.
 // ============================================================
 
 (function () {
@@ -23,6 +24,82 @@
   const SPARKLE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2l2.09 6.26L20.18 10l-6.09 3.74-2.09 6.26-2.09-6.26L3.82 10l6.09-1.74L12 2z"/></svg>`;
   const COPY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
   const SEND_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+
+  // ── PDF.js v5 — lazy-loaded on demand via dynamic import() ─────────────
+  // PDF.js is only loaded when the user first clicks "Attach PDF".
+  // This avoids any startup overhead on every page.
+  const PDFJS_URL        = chrome.runtime.getURL('lib/pdf.mjs');
+  const PDFJS_WORKER_URL = chrome.runtime.getURL('lib/pdf.worker.mjs');
+  let   _pdfjsLib        = null; // cached after first load
+
+  async function getPDFJS() {
+    if (_pdfjsLib) return _pdfjsLib;
+    // Dynamic import works in MV3 content scripts for web-accessible resources
+    const pdfjs = await import(PDFJS_URL);
+    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+    _pdfjsLib = pdfjs;
+    return _pdfjsLib;
+  }
+
+  // ── sessionStorage keys for PDF persistence ─────────────────
+  const PDF_TEXT_KEY = 'chatassist_pdf_text';
+  const PDF_NAME_KEY = 'chatassist_pdf_name';
+
+  // ── PDF helpers ─────────────────────────────────────────────
+
+  // Extract ALL text from a PDF File object using PDF.js v5
+  async function extractPDFText(file) {
+    const pdfjsLib    = await getPDFJS();
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf         = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const pageTexts   = [];
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page    = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageStr = content.items.map((item) => item.str).join(' ');
+      pageTexts.push(pageStr);
+    }
+
+    return pageTexts.join('\n\n').trim();
+  }
+
+  // Read PDF context from sessionStorage
+  function getPDFContext() {
+    const text = sessionStorage.getItem(PDF_TEXT_KEY);
+    const name = sessionStorage.getItem(PDF_NAME_KEY);
+    return (text && name) ? { text, name } : null;
+  }
+
+  // Save PDF context to sessionStorage
+  function savePDF(name, text) {
+    sessionStorage.setItem(PDF_NAME_KEY, name);
+    sessionStorage.setItem(PDF_TEXT_KEY, text);
+  }
+
+  // Clear PDF context
+  function clearPDF() {
+    sessionStorage.removeItem(PDF_TEXT_KEY);
+    sessionStorage.removeItem(PDF_NAME_KEY);
+    updateFABBadge();
+  }
+
+  // Show/hide a small badge on the FAB indicating a PDF is attached
+  function updateFABBadge() {
+    if (!fab) return;
+    const existing = document.getElementById('chatassist-fab-badge');
+    const hasPDF   = !!getPDFContext();
+
+    if (hasPDF && !existing) {
+      const badge = document.createElement('span');
+      badge.id          = 'chatassist-fab-badge';
+      badge.textContent = '📄';
+      badge.title       = 'PDF attached — click ✦ to use it';
+      fab.appendChild(badge);
+    } else if (!hasPDF && existing) {
+      existing.remove();
+    }
+  }
 
   // ── State ───────────────────────────────────────────────────
   let fab = null;
@@ -49,6 +126,8 @@
 
     fab.addEventListener('click', onFABClick);
     document.body.appendChild(fab);
+    // Restore badge if PDF already attached from a previous selection
+    updateFABBadge();
   }
 
   // ── Show FAB near cursor ────────────────────────────────────
@@ -113,76 +192,161 @@
     openModal(text, surroundingText, platformCtx);
   }
 
-  // ── Layer A: Extract Surrounding DOM Text (multi-strategy) ──────────────
+  // ── Layer A: Extract Surrounding DOM Text ───────────────────────────────
   //
-  // Strategy overview:
-  //   1. Walk ALL the way up the DOM (no level cap, no tag restriction).
-  //      Collect every ancestor's innerText length as we go.
-  //      Pick the "sweet spot" ancestor: the deepest one whose text is at
-  //      least MIN_CONTEXT_CHARS long but no more than MAX_PAGE_CHARS
-  //      (to avoid grabbing the full page / nav / sidebars).
-  //   2. If no single ancestor is rich enough, aggregate sibling text at
-  //      each level as we walk up, until we have enough characters.
-  //   3. Last resort: pull from document.body directly.
+  // Problem solved: naive "largest ancestor" approach captured sidebar +
+  // chat panel together on WhatsApp/LinkedIn because it climbed too high.
   //
-  // Works across deeply-nested, dynamic-rendered DOMs:
-  //   WhatsApp Web, LinkedIn, Upwork, Facebook, Slack, Telegram Web, etc.
+  // New strategy — THREE-PASS proximity-first approach:
   //
-  const MIN_CONTEXT_CHARS = 120;   // ancestor must have at least this much text
-  const MAX_PAGE_CHARS = 40000; // anything larger is likely the full page
+  //   Pass 1 (IDEAL):   Find the smallest ancestor with 200–12k chars that
+  //                     passes BOTH filters below. Return immediately.
+  //   Pass 2 (FALLBACK):Find smallest ancestor with 200–40k chars passing
+  //                     geometry filter (density relaxed).
+  //   Pass 3 (LAST):    Aggregate sibling text walking upward.
+  //   Pass 4 (BODY):    Trim body.innerText as last resort.
+  //
+  // FILTER 1 — Geometry: reject elements whose width ≥ 90% of the viewport.
+  //   These are layout shells (app containers) that include sidebars.
+  //
+  // FILTER 2 — Density: selected text must be ≥ 2% of ancestor text.
+  //   If the selection is a tiny fraction of the container, the container
+  //   is too broad — it likely includes unrelated sidebar content.
+  //   LinkedIn's <main> is ~70% viewport width so it passes geometry, but
+  //   its text is diluted by the conversation-list sidebar → density rejects it.
+  //
+  const MIN_CONTEXT_CHARS  = 200;    // minimum chars for useful context
+  const IDEAL_MAX_CHARS    = 12000;  // ideal ceiling — stays inside chat panel
+  const MAX_PAGE_CHARS     = 40000;  // hard ceiling before it's the full page
+  const MIN_DENSITY        = 0.02;   // selected text must be ≥ 2% of ancestor
+
+  // Returns true if the element width spans nearly the full viewport
+  function isLayoutShell(el) {
+    try {
+      const rect = el.getBoundingClientRect();
+      return rect.width >= window.innerWidth * 0.9;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ── Priority container selectors per platform ──────────────
+  // These target the actual chat/thread panel directly, bypassing the
+  // generic DOM walk-up which can climb too high and include sidebars.
+  //
+  // Each entry: { hostContains, selector, description }
+  // The selector is evaluated from the anchor node upward via closest(),
+  // then falls back to document.querySelector() for fixed wrappers.
+  const PLATFORM_CONTAINERS = [
+    {
+      // LinkedIn Messaging — thread detail panel (right side, chat messages only)
+      hostContains: 'linkedin.com',
+      selectors: [
+        '.scaffold-layout__detail',   // thread detail column
+        '.msg__detail',               // messaging detail
+        '.msg-s-message-list-container', // message list itself
+        '.msg-convo-wrapper',         // conversation wrapper
+      ],
+    },
+    {
+      // WhatsApp Web — main conversation panel
+      hostContains: 'web.whatsapp.com',
+      selectors: [
+        '#main',                      // main chat panel
+        '[data-testid="conversation-panel-wrapper"]',
+        '[data-testid="conversation-panel-messages"]',
+      ],
+    },
+  ];
+
+  // Try to find the best platform-specific container that contains anchorNode
+  function getPlatformContainer(anchorNode) {
+    const host = window.location.hostname || '';
+    for (const platform of PLATFORM_CONTAINERS) {
+      if (!host.includes(platform.hostContains)) continue;
+      for (const sel of platform.selectors) {
+        // Walk up from anchorNode first
+        let el = anchorNode.closest ? anchorNode.closest(sel) : null;
+        // Fall back to document-level query
+        if (!el) el = document.querySelector(sel);
+        if (el && el.contains(anchorNode)) return el;
+      }
+    }
+    return null;
+  }
 
   function getSurroundingText(selection) {
     try {
       if (!selection || selection.rangeCount === 0) return '';
 
-      const range = selection.getRangeAt(0);
+      const range        = selection.getRangeAt(0);
       const selectedText = selection.toString().trim();
-      let anchorNode = range.commonAncestorContainer;
+      let   anchorNode   = range.commonAncestorContainer;
 
-      // Normalise to element
       if (anchorNode.nodeType === Node.TEXT_NODE) anchorNode = anchorNode.parentElement;
       if (!anchorNode) return '';
 
-      // ── Strategy 1: Walk up all levels, find sweet-spot ancestor ─────────
-      let sweetSpotEl = null;
-      let current = anchorNode;
+      const selLen = selectedText.length;
+
+      // ── Priority Pass: Platform-specific container ────────────
+      // Run before the generic walk-up to avoid climbing into sidebar parents.
+      const platformEl = getPlatformContainer(anchorNode);
+      if (platformEl) {
+        const txt = (platformEl.innerText || '').trim();
+        if (txt.length >= MIN_CONTEXT_CHARS) {
+          return trimAroundSelection(txt, selectedText);
+        }
+      }
+
+      // ── Pass 1 & 2: Walk up, apply filters ───────────────────
+      let fallbackEl = null; // best candidate if ideal not found
+      let current    = anchorNode;
 
       while (current && current !== document.documentElement) {
         const txt = (current.innerText || '').trim();
+        const len = txt.length;
 
-        // A good ancestor: enough text to be a conversation container,
-        // but not so much that it spans the whole page.
-        if (txt.length >= MIN_CONTEXT_CHARS && txt.length <= MAX_PAGE_CHARS) {
-          sweetSpotEl = current; // keep climbing — we want the LARGEST qualifying ancestor
+        // Hard stop — we've hit the full page
+        if (len > MAX_PAGE_CHARS) break;
+
+        if (len >= MIN_CONTEXT_CHARS) {
+          const passGeometry = !isLayoutShell(current);
+          const density      = selLen / len;
+          const passDensity  = density >= MIN_DENSITY;
+
+          // Pass 1 (IDEAL): small container, both filters pass → accept now
+          if (len <= IDEAL_MAX_CHARS && passGeometry && passDensity) {
+            return trimAroundSelection(txt, selectedText);
+          }
+
+          // Pass 2 candidate: larger container, at least geometry passes
+          if (passGeometry && !fallbackEl) {
+            fallbackEl = current;
+          }
         }
-
-        // Once we pass the whole-page threshold, the previous one was best
-        if (txt.length > MAX_PAGE_CHARS && sweetSpotEl) break;
 
         current = current.parentElement;
       }
 
-      if (sweetSpotEl) {
+      // Use best fallback from Pass 2
+      if (fallbackEl) {
         return trimAroundSelection(
-          (sweetSpotEl.innerText || '').trim(),
+          (fallbackEl.innerText || '').trim(),
           selectedText
         );
       }
 
-      // ── Strategy 2: Aggregate sibling text at each DOM level ─────────────
-      // Walk up from anchor and at each level grab all text of sibling
-      // elements, building a combined string until we hit the char limit.
+      // ── Pass 3: Aggregate sibling text at multiple levels ─────
       let aggregated = '';
-      let crawler = anchorNode;
+      let crawler    = anchorNode;
 
       while (crawler && crawler !== document.body) {
         const parent = crawler.parentElement;
         if (!parent) break;
 
-        const siblings = Array.from(parent.children);
-        for (const sib of siblings) {
+        for (const sib of Array.from(parent.children)) {
           const sibText = (sib.innerText || '').trim();
-          if (sibText && sibText !== aggregated) {
+          if (sibText && !aggregated.includes(sibText)) {
             aggregated += (aggregated ? '\n' : '') + sibText;
           }
           if (aggregated.length >= MAX_SURROUNDING_CHARS * 2) break;
@@ -194,7 +358,7 @@
         crawler = parent;
       }
 
-      // ── Strategy 3: Fall back to body text ───────────────────────────────
+      // ── Pass 4: Last resort — body ────────────────────────────
       const bodyText = (document.body.innerText || '').trim();
       if (bodyText && bodyText !== selectedText) {
         return trimAroundSelection(bodyText, selectedText);
@@ -206,6 +370,7 @@
       return '';
     }
   }
+
 
   // Trim extracted text to MAX_SURROUNDING_CHARS, centered around selectedText
   function trimAroundSelection(fullText, selectedText) {
@@ -348,6 +513,103 @@
 
     manualSection.append(manualLabel, manualInput);
 
+    // ── PDF attachment section (Layer D) ─────────────────────
+    const pdfContext = getPDFContext();
+
+    const pdfSection = document.createElement('div');
+    pdfSection.id = 'chatassist-pdf-section';
+
+    // Hidden file input
+    const pdfFileInput = document.createElement('input');
+    pdfFileInput.type   = 'file';
+    pdfFileInput.accept = '.pdf,application/pdf';
+    pdfFileInput.id     = 'chatassist-pdf-file-input';
+    pdfFileInput.style.display = 'none';
+
+    // Header row
+    const pdfHeader = document.createElement('div');
+    pdfHeader.id = 'chatassist-pdf-header';
+
+    const pdfIcon = document.createElement('span');
+    pdfIcon.id          = 'chatassist-pdf-icon';
+    pdfIcon.textContent = '📄';
+
+    const pdfLabel = document.createElement('span');
+    pdfLabel.id = 'chatassist-pdf-label';
+
+    const pdfActions = document.createElement('div');
+    pdfActions.id = 'chatassist-pdf-actions';
+
+    const pdfAttachBtn = document.createElement('button');
+    pdfAttachBtn.id          = 'chatassist-pdf-attach-btn';
+    pdfAttachBtn.textContent = 'Attach PDF';
+    pdfAttachBtn.type        = 'button';
+
+    const pdfRemoveBtn = document.createElement('button');
+    pdfRemoveBtn.id          = 'chatassist-pdf-remove-btn';
+    pdfRemoveBtn.textContent = '× Remove';
+    pdfRemoveBtn.type        = 'button';
+    pdfRemoveBtn.style.display = 'none';
+
+    pdfActions.append(pdfAttachBtn, pdfRemoveBtn);
+    pdfHeader.append(pdfIcon, pdfLabel, pdfActions);
+
+    // Loading indicator
+    const pdfLoadingEl = document.createElement('span');
+    pdfLoadingEl.id          = 'chatassist-pdf-loading';
+    pdfLoadingEl.textContent = '⏳ Reading PDF…';
+    pdfLoadingEl.style.display = 'none';
+
+    pdfSection.append(pdfFileInput, pdfHeader, pdfLoadingEl);
+
+    // Helper to update PDF UI state
+    function refreshPDFUI(ctx) {
+      if (ctx) {
+        const charCount = ctx.text.length.toLocaleString();
+        pdfLabel.textContent   = `${ctx.name} (${charCount} chars)`;
+        pdfAttachBtn.style.display = 'none';
+        pdfRemoveBtn.style.display = 'inline-flex';
+      } else {
+        pdfLabel.textContent       = 'PDF Document';
+        pdfAttachBtn.style.display = 'inline-flex';
+        pdfRemoveBtn.style.display = 'none';
+      }
+    }
+
+    // Init with existing sessionStorage state
+    refreshPDFUI(pdfContext);
+
+    // Attach button → trigger file picker
+    pdfAttachBtn.addEventListener('click', () => pdfFileInput.click());
+
+    // File selected → extract text
+    pdfFileInput.addEventListener('change', async () => {
+      const file = pdfFileInput.files[0];
+      if (!file) return;
+
+      pdfLoadingEl.style.display = 'inline-block';
+      pdfAttachBtn.disabled      = true;
+
+      try {
+        const text = await extractPDFText(file);
+        savePDF(file.name, text);
+        updateFABBadge();
+        refreshPDFUI(getPDFContext());
+      } catch (err) {
+        pdfLabel.textContent = `⚠️ Error: ${err.message}`;
+      } finally {
+        pdfLoadingEl.style.display = 'none';
+        pdfAttachBtn.disabled      = false;
+        pdfFileInput.value         = ''; // reset so same file can be re-attached
+      }
+    });
+
+    // Remove button → clear PDF
+    pdfRemoveBtn.addEventListener('click', () => {
+      clearPDF();
+      refreshPDFUI(null);
+    });
+
     // ── Body (for AI response)
     const body = document.createElement('div');
     body.id = 'chatassist-modal-body';
@@ -384,7 +646,7 @@
     // ── Assemble modal
     const parts = [header, preview];
     if (surroundingIndicator) parts.push(surroundingIndicator);
-    parts.push(manualSection, body, footer);
+    parts.push(manualSection, pdfSection, body, footer);
     modal.append(...parts);
 
     backdrop.appendChild(modal);
@@ -393,14 +655,17 @@
     // Focus the manual textarea for quick typing
     setTimeout(() => manualInput.focus(), 80);
 
-    // Generate on button click
+    // Generate on button click — pass current PDF context at click time
     generateBtn.addEventListener('click', () => {
-      const manualContext = manualInput.value.trim();
+      const manualContext  = manualInput.value.trim();
+      const currentPDF     = getPDFContext(); // re-read in case user just attached
       generateBtn.disabled = true;
       generateBtn.style.opacity = '0.6';
       generateBtn.innerHTML = '⏳ Generating…';
-      callClaude(selectedText, surroundingText, platformCtx, manualContext, body, copyBtn);
+      callClaude(selectedText, surroundingText, platformCtx, manualContext, currentPDF, body, copyBtn);
     });
+
+
 
     // Also allow Ctrl+Enter / Cmd+Enter to generate from textarea
     manualInput.addEventListener('keydown', (e) => {
@@ -432,8 +697,8 @@
     if (e.key === 'Escape') closeModal();
   }
 
-  // ── Claude API Call (with tri-layer context) ────────────────
-  async function callClaude(selectedText, surroundingText, platformCtx, manualContext, bodyEl, copyBtn) {
+  // ── Claude API Call (with quad-layer context) ─────────────────
+  async function callClaude(selectedText, surroundingText, platformCtx, manualContext, pdfCtx, bodyEl, copyBtn) {
     const DEFAULT_SYSTEM_PROMPT =
       'You are a helpful AI assistant. Analyze the provided text and give a clear, concise, and useful response.';
 
@@ -454,7 +719,7 @@
       ? systemPrompt.trim()
       : DEFAULT_SYSTEM_PROMPT;
 
-    // ── Build tri-layer user message ──────────────────────────
+    // ── Build quad-layer user message ─────────────────────────
     const parts = [];
 
     // Layer B — Platform context
@@ -477,7 +742,13 @@
       parts.push(`\n[Additional Context I'm providing]:\n${manualContext}`);
     }
 
+    // Layer D — PDF document (full text, no character cap)
+    if (pdfCtx && pdfCtx.text) {
+      parts.push(`\n[Attached Document — "${pdfCtx.name}"]:\n${pdfCtx.text}`);
+    }
+
     const userMessage = parts.join('\n');
+
 
     try {
       const response = await fetch(CLAUDE_API_URL, {
@@ -490,7 +761,7 @@
         },
         body: JSON.stringify({
           model: AI_MODEL,
-          max_tokens: 1024,
+          max_tokens: 2048,
           system: finalSystemPrompt,
           messages: [
             { role: 'user', content: userMessage },
@@ -517,16 +788,153 @@
     }
   }
 
+  // ── Lightweight Markdown → HTML renderer ────────────────────
+  function renderMarkdown(text) {
+    // Escape HTML entities first
+    const esc = (s) =>
+      s.replace(/&/g, '&amp;')
+       .replace(/</g, '&lt;')
+       .replace(/>/g, '&gt;');
+
+    const lines = text.split('\n');
+    const html  = [];
+    let inUl = false, inOl = false, inPre = false, preLines = [];
+
+    const flushList = () => {
+      if (inUl) { html.push('</ul>'); inUl = false; }
+      if (inOl) { html.push('</ol>'); inOl = false; }
+    };
+
+    const flushPre = () => {
+      if (inPre) {
+        html.push('<pre>' + preLines.map(esc).join('\n') + '</pre>');
+        preLines = [];
+        inPre = false;
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const raw  = lines[i];
+      const line = raw.trimEnd();
+
+      // Fenced code block
+      if (/^```/.test(line)) {
+        if (inPre) { flushPre(); } else { flushList(); inPre = true; }
+        continue;
+      }
+      if (inPre) { preLines.push(raw); continue; }
+
+      // Headings
+      if (/^### /.test(line)) { flushList(); html.push('<h3>' + inlineMarkdown(esc(line.slice(4))) + '</h3>'); continue; }
+      if (/^## /.test(line))  { flushList(); html.push('<h2>' + inlineMarkdown(esc(line.slice(3))) + '</h2>'); continue; }
+      if (/^# /.test(line))   { flushList(); html.push('<h1>' + inlineMarkdown(esc(line.slice(2))) + '</h1>'); continue; }
+
+      // Horizontal rule
+      if (/^[-*_]{3,}$/.test(line.trim())) { flushList(); html.push('<hr>'); continue; }
+
+      // Unordered list
+      if (/^[-*+] /.test(line)) {
+        if (inOl) { html.push('</ol>'); inOl = false; }
+        if (!inUl) { html.push('<ul>'); inUl = true; }
+        html.push('<li>' + inlineMarkdown(esc(line.replace(/^[-*+] /, ''))) + '</li>');
+        continue;
+      }
+
+      // Ordered list
+      if (/^\d+\. /.test(line)) {
+        if (inUl) { html.push('</ul>'); inUl = false; }
+        if (!inOl) { html.push('<ol>'); inOl = true; }
+        html.push('<li>' + inlineMarkdown(esc(line.replace(/^\d+\. /, ''))) + '</li>');
+        continue;
+      }
+
+      // Blockquote
+      if (/^> /.test(line)) {
+        flushList();
+        html.push('<blockquote>' + inlineMarkdown(esc(line.slice(2))) + '</blockquote>');
+        continue;
+      }
+
+      // Blank line → close lists / paragraph break
+      if (line.trim() === '') {
+        flushList();
+        html.push('<br>');
+        continue;
+      }
+
+      // Regular paragraph line
+      flushList();
+      html.push('<p>' + inlineMarkdown(esc(line)) + '</p>');
+    }
+
+    flushPre();
+    flushList();
+    return html.join('\n');
+  }
+
+  // Inline markdown: bold, italic, inline code
+  function inlineMarkdown(s) {
+    return s
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/__(.+?)__/g, '<strong>$1</strong>')
+      .replace(/_(.+?)_/g, '<em>$1</em>');
+  }
+
   // ── Render AI Response ──────────────────────────────────────
   function showResponse(bodyEl, text, copyBtn) {
     bodyEl.innerHTML = '';
 
-    const responseEl = document.createElement('span');
+    const responseEl = document.createElement('div');
     responseEl.id = 'chatassist-response-text';
-    responseEl.textContent = text;
+    responseEl.innerHTML = renderMarkdown(text);
 
     bodyEl.appendChild(responseEl);
     copyBtn.style.display = 'flex';
+
+    // Enter response-mode: collapse inputs, expand modal
+    const modal = document.getElementById('chatassist-modal');
+    if (modal) {
+      modal.classList.add('chatassist-response-mode');
+
+      // Inject "Edit Context" bar if not already present
+      if (!document.getElementById('chatassist-edit-bar')) {
+        const editBar = document.createElement('div');
+        editBar.id = 'chatassist-edit-bar';
+
+        const editBtn = document.createElement('button');
+        editBtn.id          = 'chatassist-edit-context-btn';
+        editBtn.innerHTML   = '✏ Edit context &amp; regenerate';
+        editBtn.type        = 'button';
+
+        editBtn.addEventListener('click', () => {
+          modal.classList.remove('chatassist-response-mode');
+          editBar.remove();
+          bodyEl.innerHTML = '';
+          copyBtn.style.display = 'none';
+          // Re-enable generate button
+          const genBtn = document.getElementById('chatassist-generate-btn');
+          if (genBtn) {
+            genBtn.disabled = false;
+            genBtn.style.opacity = '';
+            const SEND_SVG_INLINE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+            genBtn.innerHTML = SEND_SVG_INLINE + ' Generate Response';
+          }
+        });
+
+        editBar.appendChild(editBtn);
+
+        // Insert after header (first child of modal)
+        const header = document.getElementById('chatassist-modal-header');
+        if (header && header.nextSibling) {
+          modal.insertBefore(editBar, header.nextSibling);
+        } else {
+          modal.appendChild(editBar);
+        }
+      }
+    }
   }
 
   // ── Render Error ────────────────────────────────────────────
